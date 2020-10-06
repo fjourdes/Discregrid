@@ -1,3 +1,4 @@
+build/
 *.bmp
 resource_path.hpp
 *.*sdf
