@@ -34,6 +34,7 @@ int main(int argc, char* argv[])
 	("h,help", "Prints this help text")
 	("r,resolution", "Grid resolution", cxxopts::value<std::array<unsigned int, 3>>()->default_value("10 10 10"))
 	("d,domain", "Domain extents (bounding box), format: \"minX minY minZ maxX maxY maxZ\"", cxxopts::value<AlignedBox3d>())
+	("m,margin", "Margin to apply to the bounding box (scalar value)", cxxopts::value<double>()->default_value("0"))
 	("i,invert", "Invert SDF")
 	("o,output", "Ouput file in cdf format", cxxopts::value<std::string>()->default_value(""))
 	("input", "OBJ file containing input triangle mesh", cxxopts::value<std::vector<std::string>>())
@@ -82,13 +83,28 @@ int main(int argc, char* argv[])
 		}
 		if (domain.isEmpty())
 		{
+			std::cout << "Using mesh bounding box:" << std::endl;
+
 			for (auto const& x : mesh.vertices())
 			{
 				domain.extend(x);
 			}
 			domain.max() += 1.0e-3 * domain.diagonal().norm() * Vector3d::Ones();
 			domain.min() -= 1.0e-3 * domain.diagonal().norm() * Vector3d::Ones();
+
+			std::cout << "\tmin: " << domain.min()[0] << "," << domain.min()[1] << domain.min()[2] << std::endl;
+			std::cout << "\tmax: " << domain.max()[0] << "," << domain.max()[1] << domain.max()[2] << std::endl;
 		}
+
+		auto margin = result["m"].as<double>();
+
+		domain.max() += margin * Vector3d::Ones();
+		domain.min() -= margin * Vector3d::Ones();
+
+		std::cout << "Domain bounding box using margin of " << margin << " length unit:" << std::endl;
+		std::cout << "\tmin: " << domain.min()[0] << "," << domain.min()[1] << domain.min()[2] << std::endl;
+		std::cout << "\tmax: " << domain.max()[0] << "," << domain.max()[1] << domain.max()[2] << std::endl;
+
 
 		Discregrid::CubicLagrangeDiscreteGrid sdf(domain, resolution);
 		auto func = Discregrid::DiscreteGrid::ContinuousFunction{};
