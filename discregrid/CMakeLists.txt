@@ -1,3 +1,6 @@
+cmake_minimum_required(VERSION 3.12)
+
+project(Discregrid)
 
 set(HEADERS
 	include/Discregrid/discrete_grid.hpp
@@ -22,6 +25,9 @@ set(HEADERS_MESH
 set(HEADERS_GEOMETRY
 	include/Discregrid/geometry/mesh_distance.hpp
 
+)
+
+set(HEADERS_GEOMETRY_PRIVATE
 	src/geometry/point_triangle_distance.hpp
 )
 
@@ -29,6 +35,9 @@ set(HEADERS_UTILITY
 	include/Discregrid/utility/serialize.hpp
 	include/Discregrid/utility/lru_cache.hpp
 
+)
+
+set(HEADERS_UTILITY_PRIVATE
 	src/utility/timing.hpp
 	src/utility/spinlock.hpp
 )
@@ -72,38 +81,9 @@ SOURCEGROUP(MESH)
 SOURCEGROUP(ACCELERATION)
 SOURCEGROUP(DATA)
 SOURCEGROUP(GEOMETRY)
+SOURCEGROUP(GEOMETRY_PRIVATE)
 SOURCEGROUP(UTILITY)
-
-# OpenMP support.
-if(APPLE)
-	include(PatchOpenMPApple)
-else()
-	find_package(OpenMP REQUIRED)
-endif()
-
-if(OPENMP_FOUND)
-	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-	set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
-endif()
-
-# Eigen library.
-find_package(Eigen3 REQUIRED)
-
-# Set include directories.
-include_directories(
-	include
-	include/Discregrid
-	${EIGEN3_INCLUDE_DIR}
-	../extern
-)
-
-# Disable stupid MSVC compiler warnings.
-if(WIN32)
-	add_definitions(-D_SCL_SECURE_NO_WARNINGS -D_CRT_SECURE_NO_WARNINGS)
-	add_definitions(-DNOMINMAX)
-	add_definitions(-D_USE_MATH_DEFINES)
-endif(WIN32)
+SOURCEGROUP(UTILITY_PRIVATE)
 
 set(DISCREGRID_SOURCE_FILES
 	${HEADERS}
@@ -114,10 +94,26 @@ set(DISCREGRID_SOURCE_FILES
 	${HEADERS_MESH}
 	${SOURCES_MESH}
 	${HEADERS_GEOMETRY}
+    ${HEADERS_GEOMETRY_PRIVATE}
 	${SOURCES_GEOMETRY}
 	${HEADERS_UTILITY}
+    ${HEADERS_UTILITY_PRIVATE}
 	${SOURCES_UTILITY}
 )
+
+set(DISCREGRID_PUBLIC_HEADERS
+    ${HEADERS}
+    ${HEADERS_ACCELERATION}
+    ${HEADERS_MESH}
+    ${HEADERS_GEOMETRY}
+    ${HEADERS_UTILITY}
+)
+
+# Eigen library.
+find_package(Eigen3 REQUIRED)
+
+# OpenMP support.
+find_package(OpenMP REQUIRED)
 
 if(BUILD_AS_SHARED_LIBS)
 	add_library(Discregrid SHARED ${DISCREGRID_SOURCE_FILES})
@@ -125,19 +121,55 @@ else()
 	add_library(Discregrid ${DISCREGRID_SOURCE_FILES})
 endif()
 
-# Discregrid has the following dependencies.
-#add_dependencies(Discregrid
-#)
+target_link_libraries(Discregrid PUBLIC
+    Eigen3::Eigen
+    OpenMP::OpenMP_CXX)
 
-# Set link libraries.
-target_link_libraries(Discregrid
+target_include_directories(Discregrid
+    PUBLIC
+    $<INSTALL_INTERFACE:include>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/Discregrid>
 )
 
-install(TARGETS Discregrid
-		RUNTIME DESTINATION bin
-		LIBRARY DESTINATION lib
-		ARCHIVE DESTINATION lib)
+target_include_directories(Discregrid
+    PRIVATE
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
+)
 
-install(DIRECTORY include
-DESTINATION .
-PATTERN "*.hpp")
+include(GNUInstallDirs)
+
+install(TARGETS Discregrid
+        EXPORT DiscregridTargets
+        INCLUDES DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+        RUNTIME DESTINATION  "${CMAKE_INSTALL_BINDIR}"
+        LIBRARY DESTINATION  "${CMAKE_INSTALL_LIBDIR}"
+        ARCHIVE DESTINATION  "${CMAKE_INSTALL_LIBDIR}"
+)
+foreach ( file ${DISCREGRID_PUBLIC_HEADERS} )
+    get_filename_component( dir ${file} DIRECTORY )
+    # use CMAKE_INSTALL_PREFIX instead of CMAKE_INSTALL_INCLUDEDIR since
+    # each file has already a parent directory named "include"
+    install( FILES ${file} DESTINATION ${CMAKE_INSTALL_PREFIX}/${dir} )
+endforeach()
+
+
+include(CMakePackageConfigHelpers)
+
+configure_package_config_file(DiscregridConfig.cmake.in
+    ${CMAKE_BINARY_DIR}/Discregrid/DiscregridConfig.cmake
+    INSTALL_DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/Discregrid"
+)
+
+install(FILES ${CMAKE_BINARY_DIR}/Discregrid/DiscregridConfig.cmake
+    DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/Discregrid")
+
+install(EXPORT DiscregridTargets
+        NAMESPACE "Discregrid::"
+        DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/Discregrid"
+)
+
+# Add an alias library for the projects which consumes Discregrid library directly
+# ie without resorting to the DiscregridTargets file
+add_library(Discregrid::Discregrid ALIAS Discregrid)
+
