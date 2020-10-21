@@ -1,3 +1,5 @@
+cmake_minimum_required(VERSION 3.10)
+
 # Declare configuration file to embed supplied mesh files.
 set(RESOURCE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/resources/")
 configure_file("../resource_path.hpp.in" "${CMAKE_CURRENT_SOURCE_DIR}/resource_path.hpp")
