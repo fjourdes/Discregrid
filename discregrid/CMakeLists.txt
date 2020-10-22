@@ -137,6 +137,13 @@ target_include_directories(Discregrid
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
 )
 
+# The code must be relocatable if we want to link a shared library against it
+target_compile_options(Discregrid
+    PRIVATE
+    $<$<CXX_COMPILER_ID:GNU>:-fPIC>
+    $<$<CXX_COMPILER_ID:Clang>:-fPIC>
+)
+
 include(GNUInstallDirs)
 
 install(TARGETS Discregrid
