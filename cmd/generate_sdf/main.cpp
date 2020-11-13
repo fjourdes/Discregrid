@@ -37,6 +37,8 @@ int main(int argc, char* argv[])
 	("m,margin", "Margin to apply to the bounding box (scalar value)", cxxopts::value<double>()->default_value("0"))
 	("i,invert", "Invert SDF")
 	("o,output", "Ouput file in cdf format", cxxopts::value<std::string>()->default_value(""))
+	("v,vertices", "vertices list of input triangle mesh (alternative of using input mesh file)", cxxopts::value<std::vector<double>>())
+	("t,triangles", "triangles list of input triangle mesh (alternative of using input mesh file)", cxxopts::value<std::vector<unsigned int>>())
 	("input", "OBJ file containing input triangle mesh", cxxopts::value<std::vector<std::string>>())
 	;
 
@@ -51,24 +53,61 @@ int main(int argc, char* argv[])
 			std::cout << std::endl << std::endl << "Example: GenerateSDF -r \"50 50 50\" dragon.obj" << std::endl;
 			exit(0);
 		}
-		if (!result.count("input"))
-		{
-			std::cout << "ERROR: No input mesh given." << std::endl;
-			std::cout << options.help() << std::endl;
-			std::cout << std::endl << std::endl << "Example: GenerateSDF -r \"50 50 50\" dragon.obj" << std::endl;
-			exit(1);
-		}
-		auto resolution = result["r"].as<std::array<unsigned int, 3>>();
-		auto filename = result["input"].as<std::vector<std::string>>().front();
 
-		if (!std::ifstream(filename).good())
+		bool useFile = (!result.count("vertices") && !result.count("triangles"));
+		if (useFile)
+		{
+			if (!result.count("input"))
+			{
+		        std::cout << "ERROR: No input mesh given." << std::endl;
+		        std::cout << options.help() << std::endl;
+		        std::cout << std::endl << std::endl << "Example: GenerateSDF -r \"50 50 50\" dragon.obj" << std::endl;
+		        exit(1);
+			}
+		}
+		else
+		{
+			if (!result.count("vertices"))
+			{
+				std::cout << "ERROR: triangles are specifyied but not vertices" << std::endl;
+				exit(1);
+			}
+			if (!result.count("triangles"))
+			{
+				std::cout << "ERROR: vertices are specifyied but not triangles" << std::endl;
+				exit(1);
+			}
+			if (!result.count("output"))
+			{
+				std::cout << "ERROR: if you use vertices and triangles list, you need to specify an output file path" << std::endl;
+				exit(1);
+			}
+		}
+
+		auto resolution = result["r"].as<std::array<unsigned int, 3>>();
+		auto filename = useFile ? result["input"].as<std::vector<std::string>>().front() : "";
+
+		if (useFile && !std::ifstream(filename).good())
 		{
 			std::cerr << "ERROR: Input file does not exist!" << std::endl;
 			exit(1);
 		}
 
 		std::cout << "Load mesh...";
-		Discregrid::TriangleMesh mesh(filename);
+		std::vector<Eigen::Vector3d> vertices;
+		std::vector<std::array<unsigned int, 3>> triangles;
+
+		if (!useFile)
+		{
+			const std::vector<double> vlist = result["vertices"].as<std::vector<double>>();
+			for (unsigned int i = 0; i < vlist.size(); i+=3)
+				vertices.push_back(Eigen::Vector3d(vlist[i], vlist[i + 1], vlist[i + 2]));
+
+			const auto& tlist = result["triangles"].as<std::vector<unsigned int>>();
+			for (unsigned int i = 0; i < tlist.size(); i+=3)
+				triangles.push_back(std::array<unsigned int, 3>{tlist[i], tlist[i + 1], tlist[i + 2]});
+		}
+		Discregrid::TriangleMesh mesh = useFile ? Discregrid::TriangleMesh(filename) : Discregrid::TriangleMesh(vertices, triangles);
 		std::cout << "DONE" << std::endl;
 
 		std::cout << "Set up data structures...";
