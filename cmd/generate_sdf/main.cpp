@@ -37,8 +37,9 @@ int main(int argc, char* argv[])
 	("m,margin", "Margin to apply to the bounding box (scalar value)", cxxopts::value<double>()->default_value("0"))
 	("i,invert", "Invert SDF")
 	("o,output", "Ouput file in cdf format", cxxopts::value<std::string>()->default_value(""))
-	("v,vertices", "vertices list of input triangle mesh (alternative of using input mesh file)", cxxopts::value<std::vector<double>>())
-	("t,triangles", "triangles list of input triangle mesh (alternative of using input mesh file)", cxxopts::value<std::vector<unsigned int>>())
+    ("translate", "Translate input mesh", cxxopts::value<std::vector<double>>()->default_value("0.0, 0.0, 0.0"))
+    ("v,vertices", "vertices list of input triangle mesh (alternative of using input mesh file)", cxxopts::value<std::vector<double>>())
+    ("t,triangles", "triangles list of input triangle mesh (alternative of using input mesh file)", cxxopts::value<std::vector<unsigned int>>())
 	("input", "OBJ file containing input triangle mesh", cxxopts::value<std::vector<std::string>>())
 	;
 
@@ -108,6 +109,17 @@ int main(int argc, char* argv[])
 				triangles.push_back(std::array<unsigned int, 3>{tlist[i], tlist[i + 1], tlist[i + 2]});
 		}
 		Discregrid::TriangleMesh mesh = useFile ? Discregrid::TriangleMesh(filename) : Discregrid::TriangleMesh(vertices, triangles);
+
+        const std::vector<double> translationInput = result["translate"].as<std::vector<double>>();
+        Eigen::Vector3d translation;
+        for (unsigned int i = 0; i < 3; i++)
+            translation[i] = translationInput[i];
+
+        if (translation != Eigen::Vector3d(0.0, 0.0, 0.0))
+        {
+            mesh.translate(translation);
+        }
+
 		std::cout << "DONE" << std::endl;
 
 		std::cout << "Set up data structures...";
