@@ -25,7 +25,9 @@ public:
 		unsigned int const* faces, 
 		std::size_t nv, std::size_t nf);
 
-	TriangleMesh(std::string const& filename);
+    TriangleMesh(std::string const& filename);
+
+    void translate(Eigen::Vector3d t);
 
 	void exportOBJ(std::string const& filename) const;
 

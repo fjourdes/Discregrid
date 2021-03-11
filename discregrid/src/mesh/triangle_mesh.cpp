@@ -124,6 +124,15 @@ TriangleMesh::TriangleMesh(std::string const& path)
 }
 
 void
+TriangleMesh::translate(Eigen::Vector3d t)
+{
+    for(auto& pos : m_vertices)
+    {
+        pos += t;
+    }
+}
+
+void
 TriangleMesh::exportOBJ(std::string const& filename) const
 {
 	auto outfile = std::ofstream(filename.c_str());
